@@ -1,0 +1,77 @@
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.responses import JSONResponse
+from torchvision import datasets, models, transforms
+from PIL import Image
+import torch
+import io
+import os
+
+app = FastAPI()
+
+# Загрузка предобученной модели MobileNet
+model = models.mobilenet_v2(pretrained=True)
+
+# Изменение последнего слоя модели для 4 классов (пример)
+#num_classes = 101  # Укажите количество ваших классов
+#model.classifier[1] = torch.nn.Linear(model.classifier[1].in_features, num_classes)
+#model.eval()
+
+# Определение количества классов в вашем датасете
+data_dir = '/app/data/'  # Путь к примонтированному каталогу
+train_dataset = datasets.ImageFolder(os.path.join(data_dir, ''))
+num_classes = len(train_dataset.classes)
+model.classifier[1] = torch.nn.Linear(model.classifier[1].in_features, num_classes)
+model.eval()
+
+
+# Трансформации данных
+data_transforms = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+])
+
+# Классы (для примера, замените на свои классы)
+# Определение имен классов
+class_names = train_dataset.classes
+
+
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+@app.get("/pytorch")
+def pytorch_info():
+    return {
+        "PyTorch Version": torch.__version__,
+        "CUDA Available": torch.cuda.is_available(),
+        "CUDA Devices": torch.cuda.device_count()
+    }
+
+@app.post("/predict")
+async def predict(file: UploadFile = File(...)):
+    if file.content_type not in ["image/jpeg", "image/png"]:
+        raise HTTPException(status_code=400, detail="Invalid file type. Only JPG and PNG are allowed.")
+
+    try:
+        image = Image.open(io.BytesIO(await file.read()))
+        
+        if image.size[0] > 512 or image.size[1] > 512:
+            raise HTTPException(status_code=400, detail="Image dimensions should not exceed 512x512 pixels")
+        
+        image = data_transforms(image).unsqueeze(0)
+
+        with torch.no_grad():
+            outputs = model(image)
+            _, preds = torch.max(outputs, 1)
+            predicted_class = class_names[preds[0]]
+        
+        return JSONResponse(content={"predicted_class": predicted_class})
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+if __name__ == '__main__':
+    import uvicorn
+    uvicorn.run(app, host='0.0.0.0', port=8000)

@@ -1,0 +1,16 @@
+from fastapi import FastAPI
+import torch
+
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"Hello": "World"}
+
+@app.get("/pytorch")
+def pytorch_info():
+    return {
+        "PyTorch Version": torch.__version__,
+        "CUDA Available": torch.cuda.is_available(),
+        "CUDA Devices": torch.cuda.device_count()
+    }

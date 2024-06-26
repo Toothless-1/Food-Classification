@@ -1,0 +1,29 @@
+from flask import Flask, render_template
+import requests
+
+app = Flask(__name__)
+
+
+@app.route('/')
+def home():
+    response = requests.get('http://fastapi:8000')
+    root_data = response.json()
+    root_message = root_data.get('Hello', 'No message')
+    
+    pytorch_response = requests.get('http://fastapi:8000/pytorch')
+    pytorch_data = pytorch_response.json()
+    pytorch_message = str(pytorch_data)
+    
+    return render_template('index.html', root_message=root_message, pytorch_message=pytorch_message)
+
+
+@app.route('/pytorch')
+def pytorch():
+    response = requests.get('http://fastapi:8000/pytorch')
+    data = response.json()
+    message = str(data)
+    return render_template('index.html', pytorch_message=message)
+
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)

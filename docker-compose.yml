@@ -1,0 +1,26 @@
+version: '3.3'
+
+services:
+  fastapi:
+    image: fastapi-pytorch-app
+    build:
+      context: .
+      dockerfile: dockerfile.fastapi
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app
+      - /home/dreamer/food-101/images:/app/data  # Примонтировать локальный каталог в контейнер
+      - /home/dreamer/food-101/meta:/app/meta  # Примонтировать локальный каталог в контейнер
+    shm_size: '6g'  # Увеличить размер общей памяти до 1 ГБ
+
+  flask:
+    build:
+      context: .
+      dockerfile: dockerfile.flask
+    ports:
+      - "5000:5000"
+    depends_on:
+      - fastapi
+    volumes:
+      - ./flask_app:/app
